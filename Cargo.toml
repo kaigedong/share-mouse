@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+libp2p = "0.53.2"
 # enigo = "0.2.1"
 rdev = "0.5.3"
 tokio = "1.39.2"
