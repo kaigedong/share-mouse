@@ -1,1 +1,1 @@
-pub trait MouseInput {}
+pub trait ToDevice {}
