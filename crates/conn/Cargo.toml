@@ -1,0 +1,24 @@
+[package]
+name = "conn"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+axum-extra = { workspace = true }
+clap = { workspace = true }
+enigo = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+headers = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# libp2p = "0.53.2"
+rdev = { workspace = true }
+serde_json = { workspace = true }

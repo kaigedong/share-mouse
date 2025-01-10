@@ -1,21 +1,7 @@
-use anyhow::Result;
-use clap::Parser;
+use crate::args;
 use rdev::{listen, Event};
 use std::sync::{mpsc, Arc};
-use tokio::{signal, sync::Mutex};
-
-mod args;
-mod net;
-mod traits;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let args = args::Args::parse();
-    let server = Arc::new(Server::new(args));
-    server.start().await;
-    signal::ctrl_c().await?;
-    Ok(())
-}
+use tokio::sync::Mutex;
 
 pub struct Server {
     args: args::Args,
@@ -26,7 +12,7 @@ pub struct Server {
 }
 
 impl Server {
-    fn new(args: args::Args) -> Self {
+    pub fn new(args: args::Args) -> Self {
         let (s_tx, s_rx) = mpsc::sync_channel(30);
         let (c_tx, c_rx) = mpsc::sync_channel(30);
 
@@ -39,13 +25,13 @@ impl Server {
         }
     }
 
-    async fn start(self: Arc<Self>) {
+    pub async fn start(self: Arc<Self>) {
         match &self.args.cmd {
             args::Commands::Server { server_listen } => {
                 let rx = self.s_rx.clone();
                 let server_listen = server_listen.clone();
                 tokio::spawn(async move {
-                    net::ws_server::start(rx, server_listen).await;
+                    conn::ws_server::start(rx, server_listen).await;
                 });
                 self.listen_and_send().await;
             }
@@ -76,7 +62,7 @@ impl Server {
     async fn recv_signal(self: Arc<Self>, connect_to: String) {
         let c_tx = self.c_tx.clone();
         tokio::spawn(async move {
-            net::ws_client::start(c_tx, connect_to).await;
+            conn::ws_client::start(c_tx, connect_to).await;
         });
 
         loop {
