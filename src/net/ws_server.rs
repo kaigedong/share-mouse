@@ -71,7 +71,7 @@ async fn ws_handler(
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, rx: Arc<Mutex<mpsc::Receiver<Event>>>) {
     println!("######## handle_socket...");
 
-    if !socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
+    if !socket.send(Message::Ping(axum::body::Bytes::from_static(b"ping"))).await.is_ok() {
         println!("Could not send ping {who}!");
         return;
     }
@@ -79,8 +79,8 @@ async fn handle_socket(mut socket: WebSocket, who: SocketAddr, rx: Arc<Mutex<mps
     loop {
         let event = rx.lock().await.recv().unwrap();
         // event to serialize binary
-        let event = serde_json::to_vec(&event).unwrap();
-        let res = socket.send(Message::Binary(event)).await;
+        let event = serde_json::to_string(&event).unwrap();
+        let res = socket.send(Message::Binary(axum::body::Bytes::from(event))).await;
         if res.is_err() {
             println!("Could not send event to {who}!");
         }
