@@ -2,11 +2,13 @@ use anyhow::Result;
 use clap::Parser;
 use iced::highlighter;
 use std::sync::Arc;
+use strum::{Display, EnumString};
 use tokio::signal;
 
 use iced::keyboard;
 use iced::widget::{
-    self, button, column, container, horizontal_space, pick_list, row, text, text_editor, toggler, tooltip,
+    self, button, center, column, container, horizontal_rule, horizontal_space, pick_list, row, text, text_editor,
+    text_input, toggler, tooltip,
 };
 use iced::{Center, Element, Fill, Font, Task, Theme};
 
@@ -37,27 +39,35 @@ pub fn run() -> iced::Result {
 }
 
 struct Application {
-    file: Option<PathBuf>,
-    content: text_editor::Content,
     theme: Theme,
-    word_wrap: bool,
-    is_loading: bool,
-    is_dirty: bool,
+    page: Page,
+    server_listen_port: String,
+    client_connect_to: String,
+    server_running: bool,
+    client_running: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+#[strum(serialize_all = "lowercase")]
+enum Page {
+    Hello,
+    Client,
+    Server,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    // ActionPerformed(text_editor::Action),
-    // WordWrapToggled(bool),
-    // NewFile,
-    // OpenFile,
-    // FileOpened(Result<(PathBuf, Arc<String>), Error>),
     SaveConfig,
     ConfigSaved(Result<PathBuf, Error>),
+    PageChanged(Page),
+    ServerPortChanged(String),      // port
+    ClientConnectToChanged(String), // ip:port
     StartServer,
     StopServer,
     StartClient,
     StopClient,
+    ServerRunning(()),
+    ClientRunning(()),
 }
 
 #[derive(Debug, Clone)]
@@ -70,12 +80,12 @@ impl Application {
     fn new() -> (Self, Task<Message>) {
         (
             Self {
-                file: None,
-                content: text_editor::Content::new(),
                 theme: Theme::Light,
-                word_wrap: true,
-                is_loading: true,
-                is_dirty: false,
+                page: Page::Hello,
+                server_listen_port: "9090".to_owned(),
+                client_connect_to: "10.10.10.10:9090".to_owned(),
+                server_running: false,
+                client_running: false,
             },
             Task::batch([
                 // Task::perform(load_file(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR"))), Message::FileOpened),
@@ -132,88 +142,135 @@ impl Application {
             //     Task::none()
             // }
             Message::SaveConfig => {
-                if self.is_loading {
-                    Task::none()
-                } else {
-                    self.is_loading = true;
+                Task::none()
+                // if self.is_loading {
+                //     Task::none()
+                // } else {
+                //     self.is_loading = true;
 
-                    Task::perform(save_config(self.file.clone(), self.content.text()), Message::ConfigSaved)
-                }
+                //     Task::perform(save_config(self.file.clone(), self.content.text()), Message::ConfigSaved)
+                // }
             }
 
             Message::ConfigSaved(result) => {
-                self.is_loading = false;
+                // self.is_loading = false;
 
-                if let Ok(path) = result {
-                    self.file = Some(path);
-                    self.is_dirty = false;
-                }
+                // if let Ok(path) = result {
+                //     self.file = Some(path);
+                //     self.is_dirty = false;
+                // }
 
+                Task::none()
+            }
+            Message::StartServer => {
+                let server = Arc::new(server::Server::new(args::Args {
+                    cmd: args::Commands::Server { server_listen: "0.0.0.0:9090".to_owned() },
+                    config_path: "analysis_config.toml".to_owned(),
+                }));
+                Task::perform(server.start(), Message::ServerRunning)
+            }
+            Message::StartClient => {
+                let client = Arc::new(server::Server::new(args::Args {
+                    cmd: args::Commands::Client { connect_to: "ws://192.168.1.25:9090".to_owned() },
+                    config_path: "analysis_config.toml".to_owned(),
+                }));
+                Task::perform(client.start(), Message::ClientRunning)
+            }
+            Message::StopServer => {
+                todo!()
+            }
+            Message::StopClient => {
+                todo!()
+            }
+            Message::PageChanged(page) => {
+                self.page = page;
+                Task::none()
+            }
+            Message::ServerPortChanged(port) => {
+                self.server_listen_port = port;
+                Task::none()
+            }
+            Message::ClientConnectToChanged(url) => {
+                self.client_connect_to = url;
+                Task::none()
+            }
+            Message::ServerRunning(_) => {
+                self.server_running = true;
+                Task::none()
+            }
+            Message::ClientRunning(_) => {
+                self.client_running = true;
                 Task::none()
             }
         }
     }
 
     fn view(&self) -> Element<Message> {
-        let controls = row![
-            // action(new_icon(), "New file", Some(Message::NewFile)),
-            // action(open_icon(), "Open file", (!self.is_loading).then_some(Message::OpenFile)),
-            // action(save_icon(), "Save file", self.is_dirty.then_some(Message::SaveFile)),
-            horizontal_space(),
-            // toggler(self.word_wrap).label("Word Wrap").on_toggle(Message::WordWrapToggled),
-            // pick_list(highlighter::Theme::ALL, Some(self.theme), Message::ThemeSelected).text_size(14).padding([5, 10])
-        ]
-        .spacing(10)
-        .align_y(Center);
+        match self.page {
+            Page::Hello => self.view_hello(),
+            Page::Client => self.view_client(),
+            Page::Server => self.view_server(),
+        }
+    }
 
-        let status = row![
-            text(if let Some(path) = &self.file {
-                let path = path.display().to_string();
-
-                if path.len() > 60 {
-                    format!("...{}", &path[path.len() - 40..])
-                } else {
-                    path
-                }
-            } else {
-                String::from("New file")
-            }),
-            horizontal_space(),
-            text({
-                let (line, column) = self.content.cursor_position();
-
-                format!("{}:{}", line + 1, column + 1)
-            })
+    fn view_hello(&self) -> Element<Message> {
+        let choose_client_type = column![
+            text("Please choose your client type："),
+            pick_list([Page::Client, Page::Server], Some(&Page::Server), Message::PageChanged).width(Fill),
         ]
         .spacing(10);
 
-        column![
-            controls,
-            // text_editor(&self.content)
-            //     .height(Fill)
-            //     .on_action(Message::ActionPerformed)
-            //     .wrapping(if self.word_wrap {
-            //         text::Wrapping::Word
-            //     } else {
-            //         text::Wrapping::None
-            //     })
-            //     .highlight(
-            //         self.file.as_deref().and_then(Path::extension).and_then(ffi::OsStr::to_str).unwrap_or("rs"),
-            //         self.theme,
-            //     )
-            //     .key_binding(|key_press| {
-            //         match key_press.key.as_ref() {
-            //             keyboard::Key::Character("s") if key_press.modifiers.command() => {
-            //                 Some(text_editor::Binding::Custom(Message::SaveFile))
-            //             }
-            //             _ => text_editor::Binding::from_key_press(key_press),
-            //         }
-            //     }),
-            status,
+        let content = column![
+            choose_client_type,
+            horizontal_rule(38),
+            // text_input,
+            // row![primary, success, warning, danger].spacing(10).align_y(Center),
+            // slider,
+            // progress_bar,
+            // row![scrollable, vertical_rule(38), column![checkbox, toggler].spacing(20)]
+            //     .spacing(10)
+            //     .height(100)
+            //     .align_y(Center),
         ]
-        .spacing(10)
-        .padding(10)
-        .into()
+        .spacing(20)
+        .padding(20)
+        .max_width(600);
+
+        center(content).into()
+    }
+
+    fn view_client(&self) -> Element<Message> {
+        let text_input = text_input("Connect to server url... e.g. (127.0.0.1:9090)", &self.server_listen_port)
+            .on_input(Message::ClientConnectToChanged)
+            .padding(10)
+            .size(20);
+
+        let start_client = button(text("Start connect to server...").width(Fill).center())
+            .padding(10)
+            .on_press(Message::StartClient)
+            .style(button::primary);
+
+        let client_config =
+            column![text("Server URL"), text_input, start_client].spacing(20).padding(20).max_width(600);
+
+        center(client_config).into()
+    }
+
+    fn view_server(&self) -> Element<Message> {
+        let text_input = text_input("Serve at port. e.g. (9090)", &self.server_listen_port)
+            .on_input(Message::ServerPortChanged)
+            .padding(10)
+            .size(20);
+
+        let start_server = button(text("Start your server service...").width(Fill).center())
+            .padding(10)
+            .on_press(Message::StartServer)
+            .style(button::primary);
+
+        let server_config =
+            column![text("Server Port"), text_input, start_server].spacing(20).padding(20).max_width(600);
+
+        center(server_config).into()
     }
 
     fn theme(&self) -> Theme {
@@ -271,3 +328,13 @@ async fn save_config(path: Option<PathBuf>, contents: String) -> Result<PathBuf,
 
     // Ok(path)
 }
+
+// async fn loop_start_server(server: Arc<server::Server>) {
+//         server.start().await;
+// }
+
+// async fn loop_start_client(client: Arc<server::Server>) {
+//     tokio::spawn(async move {
+//         client.start().await;
+//     });
+// }

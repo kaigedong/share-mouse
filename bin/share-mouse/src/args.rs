@@ -9,7 +9,7 @@ pub struct Args {
 
     /// Config path
     #[arg(short, long, default_value = "analysis_config.toml")]
-    config_path: String,
+    pub config_path: String,
 }
 
 #[derive(Subcommand, Debug, Clone)]

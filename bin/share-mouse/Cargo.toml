@@ -30,3 +30,5 @@ serde_json = { workspace = true }
 conn = { workspace = true }
 
 iced = { version = "0.13.1", features = ["highlighter"] }
+strum = { version = "0.26", features = ["derive"] }
+strum_macros = "0.26"
