@@ -67,11 +67,13 @@ impl Server {
 
         loop {
             let event = self.c_rx.lock().await.recv().unwrap();
+            if matches!(event.event_type, rdev::EventType::KeyPress(rdev::Key::F9)) {
+                break;
+            }
             let res = rdev::simulate(&event.event_type);
             if res.is_err() {
                 println!("Error: {:?}", res.err().unwrap());
             }
-            // println!("{:?}", event);
         }
     }
 }

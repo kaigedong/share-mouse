@@ -69,8 +69,6 @@ async fn ws_handler(
 
 /// Actual websocket statemachine (one will be spawned per connection)
 async fn handle_socket(mut socket: WebSocket, who: SocketAddr, rx: Arc<Mutex<mpsc::Receiver<Event>>>) {
-    println!("######## handle_socket...");
-
     if !socket.send(Message::Ping(axum::body::Bytes::from_static(b"ping"))).await.is_ok() {
         println!("Could not send ping {who}!");
         return;
