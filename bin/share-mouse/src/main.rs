@@ -61,6 +61,7 @@ enum Page {
 
 #[derive(Debug, Clone)]
 enum Message {
+    ThemeSelected(Theme),
     SaveConfig,
     ConfigSaved(Result<PathBuf, Error>),
     PageChanged(Page),
@@ -107,11 +108,10 @@ impl Application {
 
             //     Task::none()
             // }
-            // Message::ThemeSelected(theme) => {
-            //     self.theme = theme;
-
-            //     Task::none()
-            // }
+            Message::ThemeSelected(theme) => {
+                self.theme = theme;
+                Task::none()
+            }
             // Message::WordWrapToggled(word_wrap) => {
             //     self.word_wrap = word_wrap;
 
@@ -215,9 +215,24 @@ impl Application {
             .spacing(7)
             .padding(15)
             .width(250)
-            .push(Button::new(Text::new("Role")).on_press(Message::PageChanged(Page::MenuOptionRole)))
-            .push(Button::new(Text::new("Server")).on_press(Message::PageChanged(Page::MenuOptionServer)))
-            .push(Button::new(Text::new("Client")).on_press(Message::PageChanged(Page::MenuOptionClient)));
+            .push(
+                Button::new(Text::new("Role"))
+                    .on_press(Message::PageChanged(Page::MenuOptionRole))
+                    .style(button::secondary)
+                    .width(Fill),
+            )
+            .push(
+                Button::new(Text::new("Server"))
+                    .on_press(Message::PageChanged(Page::MenuOptionServer))
+                    .style(button::secondary)
+                    .width(Fill),
+            )
+            .push(
+                Button::new(Text::new("Client"))
+                    .on_press(Message::PageChanged(Page::MenuOptionClient))
+                    .style(button::secondary)
+                    .width(Fill),
+            );
 
         // 右侧内容区域
         let content = match self.page {
@@ -237,6 +252,8 @@ impl Application {
         let choose_client_type = column![
             text("Please choose your client type："),
             pick_list([Page::Client, Page::Server], Some(&Page::Server), Message::PageChanged).width(Fill),
+            text("Please choose your theme: "),
+            pick_list(Theme::ALL, Some(&self.theme), Message::ThemeSelected).width(Fill),
         ]
         .spacing(10);
 
@@ -280,7 +297,7 @@ impl Application {
     }
 
     fn theme(&self) -> Theme {
-        Theme::Light
+        self.theme.clone()
     }
 }
 
@@ -344,3 +361,10 @@ async fn save_config(path: Option<PathBuf>, contents: String) -> Result<PathBuf,
 //         client.start().await;
 //     });
 // }
+
+// enum ButtonStyle {
+//     Standard,
+//     ThemeButton,
+// }
+
+// impl button::StyleSheet for ButtonStyle {}
