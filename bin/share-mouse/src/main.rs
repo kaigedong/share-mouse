@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use iced::border::width;
 use iced::highlighter;
 use std::sync::Arc;
 use strum::{Display, EnumString};
@@ -8,7 +9,7 @@ use tokio::signal;
 use iced::keyboard;
 use iced::widget::{
     self, button, center, column, container, horizontal_rule, horizontal_space, pick_list, row, text, text_editor,
-    text_input, toggler, tooltip,
+    text_input, toggler, tooltip, vertical_rule, vertical_space, Button, Column, Row, Text,
 };
 use iced::{Center, Element, Fill, Font, Task, Theme};
 
@@ -53,6 +54,9 @@ enum Page {
     Hello,
     Client,
     Server,
+    MenuOptionRole,
+    MenuOptionServer,
+    MenuOptionClient,
 }
 
 #[derive(Debug, Clone)]
@@ -206,40 +210,42 @@ impl Application {
     }
 
     fn view(&self) -> Element<Message> {
-        match self.page {
-            Page::Hello => self.view_hello(),
-            Page::Client => self.view_client(),
-            Page::Server => self.view_server(),
-        }
+        // 左侧菜单栏
+        let menu = Column::new()
+            .spacing(7)
+            .padding(15)
+            .width(250)
+            .push(Button::new(Text::new("Role")).on_press(Message::PageChanged(Page::MenuOptionRole)))
+            .push(Button::new(Text::new("Server")).on_press(Message::PageChanged(Page::MenuOptionServer)))
+            .push(Button::new(Text::new("Client")).on_press(Message::PageChanged(Page::MenuOptionClient)));
+
+        // 右侧内容区域
+        let content = match self.page {
+            Page::MenuOptionRole => self.view_role_setting(),
+            Page::MenuOptionServer => self.view_server_setting(),
+            Page::MenuOptionClient => self.view_client_setting(),
+            _ => self.view_role_setting(),
+        };
+
+        let title = Text::new(self.page.to_string()).height(45);
+        let content = column![title, horizontal_rule(10), content];
+
+        row![menu, vertical_rule(10), content].into()
     }
 
-    fn view_hello(&self) -> Element<Message> {
+    fn view_role_setting(&self) -> Element<Message> {
         let choose_client_type = column![
             text("Please choose your client type："),
             pick_list([Page::Client, Page::Server], Some(&Page::Server), Message::PageChanged).width(Fill),
         ]
         .spacing(10);
 
-        let content = column![
-            choose_client_type,
-            horizontal_rule(38),
-            // text_input,
-            // row![primary, success, warning, danger].spacing(10).align_y(Center),
-            // slider,
-            // progress_bar,
-            // row![scrollable, vertical_rule(38), column![checkbox, toggler].spacing(20)]
-            //     .spacing(10)
-            //     .height(100)
-            //     .align_y(Center),
-        ]
-        .spacing(20)
-        .padding(20)
-        .max_width(600);
+        let content = column![choose_client_type, horizontal_rule(38),].spacing(20).padding(20).max_width(600);
 
         center(content).into()
     }
 
-    fn view_client(&self) -> Element<Message> {
+    fn view_client_setting(&self) -> Element<Message> {
         let text_input = text_input("Connect to server url... e.g. (127.0.0.1:9090)", &self.server_listen_port)
             .on_input(Message::ClientConnectToChanged)
             .padding(10)
@@ -256,7 +262,7 @@ impl Application {
         center(client_config).into()
     }
 
-    fn view_server(&self) -> Element<Message> {
+    fn view_server_setting(&self) -> Element<Message> {
         let text_input = text_input("Serve at port. e.g. (9090)", &self.server_listen_port)
             .on_input(Message::ServerPortChanged)
             .padding(10)
