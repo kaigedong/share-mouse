@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
-use iced::border::width;
-use iced::highlighter;
+use iced::border::{self, width};
+use iced::theme::palette;
+use iced::{highlighter, Background};
 use std::sync::Arc;
 use strum::{Display, EnumString};
 use tokio::signal;
@@ -101,71 +102,13 @@ impl Application {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            // Message::ActionPerformed(action) => {
-            //     self.is_dirty = self.is_dirty || action.is_edit();
-
-            //     self.content.perform(action);
-
-            //     Task::none()
-            // }
             Message::ThemeSelected(theme) => {
                 self.theme = theme;
                 Task::none()
             }
-            // Message::WordWrapToggled(word_wrap) => {
-            //     self.word_wrap = word_wrap;
+            Message::SaveConfig => Task::none(),
 
-            //     Task::none()
-            // }
-            // Message::NewFile => {
-            //     if !self.is_loading {
-            //         self.file = None;
-            //         self.content = text_editor::Content::new();
-            //     }
-
-            //     Task::none()
-            // }
-            // Message::OpenFile => {
-            //     if self.is_loading {
-            //         Task::none()
-            //     } else {
-            //         self.is_loading = true;
-
-            //         // Task::perform(open_file(), Message::FileOpened)
-            //     }
-            // }
-            // Message::FileOpened(result) => {
-            //     self.is_loading = false;
-            //     self.is_dirty = false;
-
-            //     if let Ok((path, contents)) = result {
-            //         self.file = Some(path);
-            //         self.content = text_editor::Content::with_text(&contents);
-            //     }
-
-            //     Task::none()
-            // }
-            Message::SaveConfig => {
-                Task::none()
-                // if self.is_loading {
-                //     Task::none()
-                // } else {
-                //     self.is_loading = true;
-
-                //     Task::perform(save_config(self.file.clone(), self.content.text()), Message::ConfigSaved)
-                // }
-            }
-
-            Message::ConfigSaved(result) => {
-                // self.is_loading = false;
-
-                // if let Ok(path) = result {
-                //     self.file = Some(path);
-                //     self.is_dirty = false;
-                // }
-
-                Task::none()
-            }
+            Message::ConfigSaved(result) => Task::none(),
             Message::StartServer => {
                 let server = Arc::new(server::Server::new(args::Args {
                     cmd: args::Commands::Server { server_listen: "0.0.0.0:9090".to_owned() },
@@ -209,30 +152,24 @@ impl Application {
         }
     }
 
+    fn view_button(&self, page: Page, text: String) -> Element<Message> {
+        if self.page == page {
+            Button::new(Text::new(text)).on_press(Message::PageChanged(page)).style(button::primary).width(Fill)
+        } else {
+            Button::new(Text::new(text)).on_press(Message::PageChanged(page)).style(button::secondary).width(Fill)
+        }
+        .into()
+    }
+
     fn view(&self) -> Element<Message> {
         // 左侧菜单栏
         let menu = Column::new()
             .spacing(7)
             .padding(15)
             .width(250)
-            .push(
-                Button::new(Text::new("Role"))
-                    .on_press(Message::PageChanged(Page::MenuOptionRole))
-                    .style(button::secondary)
-                    .width(Fill),
-            )
-            .push(
-                Button::new(Text::new("Server"))
-                    .on_press(Message::PageChanged(Page::MenuOptionServer))
-                    .style(button::secondary)
-                    .width(Fill),
-            )
-            .push(
-                Button::new(Text::new("Client"))
-                    .on_press(Message::PageChanged(Page::MenuOptionClient))
-                    .style(button::secondary)
-                    .width(Fill),
-            );
+            .push(self.view_button(Page::MenuOptionRole, "Role".to_string()))
+            .push(self.view_button(Page::MenuOptionServer, "Server".to_string()))
+            .push(self.view_button(Page::MenuOptionClient, "Client".to_string()));
 
         // 右侧内容区域
         let content = match self.page {
@@ -332,39 +269,3 @@ fn action<'a, Message: Clone + 'a>(
         action.style(button::secondary).into()
     }
 }
-
-async fn save_config(path: Option<PathBuf>, contents: String) -> Result<PathBuf, Error> {
-    todo!()
-    // let path = if let Some(path) = path {
-    //     path
-    // } else {
-    //     rfd::AsyncFileDialog::new()
-    //         .save_file()
-    //         .await
-    //         .as_ref()
-    //         .map(rfd::FileHandle::path)
-    //         .map(Path::to_owned)
-    //         .ok_or(Error::DialogClosed)?
-    // };
-
-    // tokio::fs::write(&path, contents).await.map_err(|error| Error::IoError(error.kind()))?;
-
-    // Ok(path)
-}
-
-// async fn loop_start_server(server: Arc<server::Server>) {
-//         server.start().await;
-// }
-
-// async fn loop_start_client(client: Arc<server::Server>) {
-//     tokio::spawn(async move {
-//         client.start().await;
-//     });
-// }
-
-// enum ButtonStyle {
-//     Standard,
-//     ThemeButton,
-// }
-
-// impl button::StyleSheet for ButtonStyle {}
